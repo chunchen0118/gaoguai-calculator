@@ -9,7 +9,7 @@
 1. **空白按鈕**：所有數字和符號按鈕都是空白的，你看不到它們代表什麼
 2. **兩個區域**：
    - **數字區**：10 個按鈕，分別對應 0-9（但順序是隨機的）
-   - **符號區**：7 個按鈕，對應 +、−、×、÷、=、.、%
+   - **符號區**：6 個按鈕，對應 +、−、×、÷、=、.
 3. **揭示機制**：當你按下按鈕時，會顯示並記住它的隱藏值
 4. **目標**：靠記憶力記住每個按鈕對應的數字或符號，嘗試組成正確的算式！
 
@@ -63,7 +63,7 @@ A fun memory game disguised as a calculator — buttons show no digits or symbol
 1. **Blank buttons**: All number and symbol buttons are unlabeled
 2. **Two zones**: 
    - Number zone: 10 buttons randomly mapped to 0-9
-   - Symbol zone: 7 buttons randomly mapped to +, −, ×, ÷, =, ., %
+   - Symbol zone: 6 buttons randomly mapped to +, −, ×, ÷, =, .
 3. **Reveal on click**: When you press a button, its hidden value is revealed and remembered
 4. **Goal**: Memorize button positions and build correct expressions!
 

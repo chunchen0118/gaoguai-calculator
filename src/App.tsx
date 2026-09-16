@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from 'react'
 import './App.css'
 
 const DIGITS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
-const SYMBOLS = ['+', '−', '×', '÷', '=', '.', '%']
+const SYMBOLS = ['+', '−', '×', '÷', '=', '.']
 
 function shuffleArray<T>(array: T[]): T[] {
   const shuffled = [...array]
@@ -19,7 +19,7 @@ function generateButtonMapping() {
   
   return {
     numberButtons: Array.from({ length: 10 }, (_, i) => shuffledDigits[i]),
-    symbolButtons: Array.from({ length: 7 }, (_, i) => shuffledSymbols[i]),
+    symbolButtons: Array.from({ length: 6 }, (_, i) => shuffledSymbols[i]),
   }
 }
 
@@ -32,9 +32,9 @@ function evaluateExpression(tokens: string[]): string | null {
     .replace(/÷/g, '/')
     .replace(/−/g, '-')
   
-  if (!/^[\d+\-*/.%]+$/.test(expr)) return null
-  if (/[+\-*/.%]{2,}/.test(expr)) return null
-  if (/^[+*/%.]+|[+\-*/.%]+$/.test(expr)) return null
+  if (!/^[\d+\-*/.]+$/.test(expr)) return null
+  if (/[+\-*/.]{2,}/.test(expr)) return null
+  if (/^[+*/.]+|[+\-*/.]+$/.test(expr)) return null
   
   try {
     const result = Function(`"use strict"; return (${expr})`)()
@@ -72,6 +72,7 @@ function App() {
     
     if (value === '=') {
       const evalResult = evaluateExpression(expression)
+      setExpression(prev => [...prev, '='])
       setResult(evalResult)
       setRevealedButtons(prev => new Set([...prev, `sym-${buttonIndex}`]))
     } else {
