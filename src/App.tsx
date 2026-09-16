@@ -23,28 +23,78 @@ function generateButtonMapping() {
   }
 }
 
-function evaluateExpression(tokens: string[]): string | null {
+const OPERATORS = new Set(['+', '−', '×', '÷'])
+
+function parseTokensToExpression(tokens: string[]): { numbers: number[]; operators: string[] } | null {
   if (tokens.length === 0) return null
   
-  const expr = tokens
-    .join('')
-    .replace(/×/g, '*')
-    .replace(/÷/g, '/')
-    .replace(/−/g, '-')
+  const numbers: number[] = []
+  const operators: string[] = []
+  let currentDigits = ''
   
-  if (!/^[\d+\-*/]+$/.test(expr)) return null
-  if (/[+\-*/]{2,}/.test(expr)) return null
-  if (/^[+*/]+|[+\-*/]+$/.test(expr)) return null
-  
-  try {
-    const result = Function(`"use strict"; return (${expr})`)()
-    if (typeof result === 'number' && isFinite(result)) {
-      return Number.isInteger(result) ? result.toString() : result.toFixed(6).replace(/\.?0+$/, '')
+  for (const token of tokens) {
+    if (OPERATORS.has(token)) {
+      if (currentDigits === '') return null
+      numbers.push(Number(currentDigits))
+      currentDigits = ''
+      operators.push(token)
+    } else {
+      currentDigits += token
     }
-    return null
-  } catch {
-    return null
   }
+  
+  if (currentDigits === '') return null
+  numbers.push(Number(currentDigits))
+  
+  if (numbers.length !== operators.length + 1) return null
+  
+  return { numbers, operators }
+}
+
+function evaluateExpression(tokens: string[]): string | null {
+  const parsed = parseTokensToExpression(tokens)
+  if (!parsed) return null
+  
+  let { numbers, operators } = parsed
+  numbers = [...numbers]
+  operators = [...operators]
+  
+  let i = 0
+  while (i < operators.length) {
+    const op = operators[i]
+    if (op === '×' || op === '÷') {
+      const left = numbers[i]
+      const right = numbers[i + 1]
+      let result: number
+      if (op === '×') {
+        result = left * right
+      } else {
+        if (right === 0) return null
+        result = left / right
+      }
+      numbers.splice(i, 2, result)
+      operators.splice(i, 1)
+    } else {
+      i++
+    }
+  }
+  
+  let result = numbers[0]
+  for (let j = 0; j < operators.length; j++) {
+    const op = operators[j]
+    const right = numbers[j + 1]
+    if (op === '+') {
+      result += right
+    } else if (op === '−') {
+      result -= right
+    }
+  }
+  
+  if (!isFinite(result)) return null
+  
+  return Number.isInteger(result) 
+    ? result.toString() 
+    : result.toFixed(6).replace(/\.?0+$/, '')
 }
 
 type Token = {
