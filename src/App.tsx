@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from 'react'
 import './App.css'
 
 const DIGITS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
-const SYMBOLS = ['+', '−', '×', '÷', '=', '.']
+const SYMBOLS = ['+', '−', '×', '÷']
 
 function shuffleArray<T>(array: T[]): T[] {
   const shuffled = [...array]
@@ -19,7 +19,7 @@ function generateButtonMapping() {
   
   return {
     numberButtons: Array.from({ length: 10 }, (_, i) => shuffledDigits[i]),
-    symbolButtons: Array.from({ length: 6 }, (_, i) => shuffledSymbols[i]),
+    symbolButtons: Array.from({ length: 4 }, (_, i) => shuffledSymbols[i]),
   }
 }
 
@@ -32,9 +32,9 @@ function evaluateExpression(tokens: string[]): string | null {
     .replace(/÷/g, '/')
     .replace(/−/g, '-')
   
-  if (!/^[\d+\-*/.]+$/.test(expr)) return null
-  if (/[+\-*/.]{2,}/.test(expr)) return null
-  if (/^[+*/.]+|[+\-*/.]+$/.test(expr)) return null
+  if (!/^[\d+\-*/]+$/.test(expr)) return null
+  if (/[+\-*/]{2,}/.test(expr)) return null
+  if (/^[+*/]+|[+\-*/]+$/.test(expr)) return null
   
   try {
     const result = Function(`"use strict"; return (${expr})`)()
@@ -47,68 +47,95 @@ function evaluateExpression(tokens: string[]): string | null {
   }
 }
 
+type Token = {
+  type: 'number' | 'symbol'
+  value: string
+}
+
 function App() {
   const [mapping, setMapping] = useState(generateButtonMapping)
-  const [expression, setExpression] = useState<string[]>([])
+  const [tokens, setTokens] = useState<Token[]>([])
+  const [isRevealed, setIsRevealed] = useState(false)
   const [result, setResult] = useState<string | null>(null)
-  const [revealedButtons, setRevealedButtons] = useState<Set<string>>(new Set())
 
   const handleNewGame = useCallback(() => {
     setMapping(generateButtonMapping())
-    setExpression([])
+    setTokens([])
+    setIsRevealed(false)
     setResult(null)
-    setRevealedButtons(new Set())
   }, [])
 
   const handleNumberClick = useCallback((buttonIndex: number) => {
+    if (isRevealed) return
     const value = mapping.numberButtons[buttonIndex]
-    setExpression(prev => [...prev, value])
-    setRevealedButtons(prev => new Set([...prev, `num-${buttonIndex}`]))
-    setResult(null)
-  }, [mapping.numberButtons])
+    setTokens(prev => [...prev, { type: 'number', value }])
+  }, [mapping.numberButtons, isRevealed])
 
   const handleSymbolClick = useCallback((buttonIndex: number) => {
+    if (isRevealed) return
     const value = mapping.symbolButtons[buttonIndex]
-    
-    if (value === '=') {
-      const evalResult = evaluateExpression(expression)
-      setExpression(prev => [...prev, '='])
-      setResult(evalResult)
-      setRevealedButtons(prev => new Set([...prev, `sym-${buttonIndex}`]))
-    } else {
-      setExpression(prev => [...prev, value])
-      setRevealedButtons(prev => new Set([...prev, `sym-${buttonIndex}`]))
-      setResult(null)
-    }
-  }, [mapping.symbolButtons, expression])
+    setTokens(prev => [...prev, { type: 'symbol', value }])
+  }, [mapping.symbolButtons, isRevealed])
+
+  const handleEquals = useCallback(() => {
+    if (tokens.length === 0) return
+    const tokenValues = tokens.map(t => t.value)
+    const evalResult = evaluateExpression(tokenValues)
+    setIsRevealed(true)
+    setResult(evalResult)
+  }, [tokens])
 
   const handleDelete = useCallback(() => {
-    setExpression(prev => prev.slice(0, -1))
-    setResult(null)
-  }, [])
+    if (isRevealed) return
+    setTokens(prev => prev.slice(0, -1))
+  }, [isRevealed])
 
   const handleClear = useCallback(() => {
-    setExpression([])
+    setTokens([])
+    setIsRevealed(false)
     setResult(null)
   }, [])
 
-  const displayText = useMemo(() => {
-    if (expression.length === 0) return '0'
-    return expression.join('')
-  }, [expression])
+  const displayContent = useMemo(() => {
+    if (tokens.length === 0) {
+      return <span className="placeholder-empty">_</span>
+    }
+    
+    if (isRevealed) {
+      return (
+        <>
+          {tokens.map((token, i) => (
+            <span key={i} className={`revealed-token ${token.type}`}>
+              {token.value}
+            </span>
+          ))}
+          <span className="equals-sign">=</span>
+        </>
+      )
+    }
+    
+    return tokens.map((token, i) => (
+      <span key={i} className={`placeholder ${token.type}`}>
+        ■
+      </span>
+    ))
+  }, [tokens, isRevealed])
 
   return (
     <div className="app">
       <header className="header">
         <h1>搞怪計算機</h1>
-        <p className="subtitle">按鈕不顯示數字，靠記憶找出隱藏的值！</p>
+        <p className="subtitle">按下神秘按鈕，按 = 揭曉答案！</p>
       </header>
 
       <div className="calculator">
         <div className="display">
-          <div className="expression">{displayText}</div>
-          {result !== null && (
-            <div className="result">= {result}</div>
+          <div className="expression">{displayContent}</div>
+          {isRevealed && result !== null && (
+            <div className="result">{result}</div>
+          )}
+          {isRevealed && result === null && (
+            <div className="result error">無效算式</div>
           )}
         </div>
 
@@ -119,14 +146,11 @@ function App() {
               {mapping.numberButtons.map((_, index) => (
                 <button
                   key={`num-${index}`}
-                  className={`key number-key ${revealedButtons.has(`num-${index}`) ? 'revealed' : ''}`}
+                  className="key number-key"
                   onClick={() => handleNumberClick(index)}
-                  aria-label={`數字按鈕 ${index + 1}`}
-                >
-                  {revealedButtons.has(`num-${index}`) && (
-                    <span className="revealed-value">{mapping.numberButtons[index]}</span>
-                  )}
-                </button>
+                  disabled={isRevealed}
+                  aria-label={`神秘數字按鈕 ${index + 1}`}
+                />
               ))}
             </div>
           </div>
@@ -137,35 +161,53 @@ function App() {
               {mapping.symbolButtons.map((_, index) => (
                 <button
                   key={`sym-${index}`}
-                  className={`key symbol-key ${revealedButtons.has(`sym-${index}`) ? 'revealed' : ''}`}
+                  className="key symbol-key"
                   onClick={() => handleSymbolClick(index)}
-                  aria-label={`符號按鈕 ${index + 1}`}
-                >
-                  {revealedButtons.has(`sym-${index}`) && (
-                    <span className="revealed-value">{mapping.symbolButtons[index]}</span>
-                  )}
-                </button>
+                  disabled={isRevealed}
+                  aria-label={`神秘符號按鈕 ${index + 1}`}
+                />
               ))}
             </div>
           </div>
         </div>
 
         <div className="controls">
-          <button className="control-btn delete-btn" onClick={handleDelete} aria-label="刪除最後一個字符">
+          <button 
+            className="control-btn equals-btn" 
+            onClick={handleEquals} 
+            disabled={isRevealed || tokens.length === 0}
+            aria-label="計算結果"
+          >
+            = 揭曉
+          </button>
+          <button 
+            className="control-btn delete-btn" 
+            onClick={handleDelete} 
+            disabled={isRevealed}
+            aria-label="刪除最後一個"
+          >
             ⌫ 刪除
           </button>
-          <button className="control-btn clear-btn" onClick={handleClear} aria-label="清除全部">
+          <button 
+            className="control-btn clear-btn" 
+            onClick={handleClear}
+            aria-label="清除全部"
+          >
             C 清除
           </button>
-          <button className="control-btn new-game-btn" onClick={handleNewGame} aria-label="重新開始遊戲">
-            🔄 重新開始
+          <button 
+            className="control-btn new-game-btn" 
+            onClick={handleNewGame} 
+            aria-label="重新開始遊戲"
+          >
+            🔄 新局
           </button>
         </div>
       </div>
 
       <footer className="footer">
-        <p>提示：每次按下按鈕會顯示其隱藏的值，試著記住每個按鈕對應的數字或符號！</p>
-        <p className="hint">按「重新開始」會重新洗牌所有按鈕的對應值</p>
+        <p>提示：每個神秘按鈕對應一個固定的數字或符號，但你看不到！</p>
+        <p className="hint">組合算式後按「= 揭曉」查看結果，「新局」會重新洗牌</p>
       </footer>
     </div>
   )
